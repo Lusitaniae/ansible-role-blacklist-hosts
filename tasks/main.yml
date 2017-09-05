@@ -29,7 +29,12 @@
     replace: "{{ lookup('file', '/tmp/hosts_custom') }}"
   when: hosts_custom is defined
 
-- name: Install new hosts file
+- name: Is runnning inside Docker?
+  shell: if ps -p1|grep -qE "init|systemd"; then echo 0; else echo 1; fi
+  register: running_docker
+  ignore_errors: true
+
+- name: Install new hosts file - safe mode
   copy:
     src: /tmp/hosts
     dest: /etc/hosts
@@ -38,6 +43,19 @@
     mode: 0644
     force: yes
   sudo: true
+  when: not running_docker
+
+- name: Install new hosts file - unsafe mode - docker only
+  copy:
+    src: /tmp/hosts
+    dest: /etc/hosts
+    owner: root
+    group: root
+    mode: 0644
+    force: yes
+    unsafe_writes: yes
+  sudo: true
+  when: running_docker
 
 - name: Remove temporary files
   file:
